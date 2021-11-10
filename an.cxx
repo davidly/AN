@@ -22,7 +22,7 @@ using namespace std::chrono;
 
     // Don't include windows.h just for this one API that has no equivalent in the standard C++ runtime
 
-    extern "C" unsigned long GetModuleFileNameA( void * module, char * filename, unsigned long size );
+    extern "C" unsigned long __stdcall GetModuleFileNameA( void * module, char * filename, unsigned long size );
     #define PATH_MAX 300
 
     char * realpath( char * exepath, char * output )
