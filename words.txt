@@ -18923,6 +18923,7 @@ faunas
 fauns
 faust
 faustus
+favor
 favour
 favourable
 favourably
@@ -58129,6 +58130,7 @@ fam
 finsta
 fomo
 hangry
+horngry
 icymi
 idk
 inspo
@@ -58158,9 +58160,13 @@ unfriend
 vacay
 welp
 fuck
+fucking
 shit
+shitting
 fart
+farting
 pee
+peeing
 le
 zit
 clit
