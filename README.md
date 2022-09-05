@@ -30,10 +30,13 @@ Usage: an [-c] [-i] [-o] [-p] [-t] [-w:X] [word1] [word2] [...]
                and even sooner for more-word anagrams. Use -i to see early results.
                The file words.txt must be in the same directory as this .exe. Feel free to add/delete words.
  
- The code in an.cxx is covered under GPL v3.
+The code in an.cxx is covered under GPL v3.
  
- The file words.txt comes originally from WordNet. 
+The file words.txt comes originally from WordNet. 
  
-     https://wordnet.princeton.edu/license-and-commercial-use
+    https://wordnet.princeton.edu/license-and-commercial-use
      
- Words.txt must reside in the same folder as an.exe. Add additional words as you like.
+Words.txt must reside in the same folder as an.exe. Add additional words as you like.
+ 
+D:\>an phoebe bridgers -w:2
+briber sheepdog
