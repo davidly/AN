@@ -39,4 +39,5 @@ The file words.txt comes originally from WordNet.
 Words.txt must reside in the same folder as an.exe. Add additional words as you like.
  
 D:\>an phoebe bridgers -w:2
+
 briber sheepdog
