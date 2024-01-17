@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -129,7 +130,7 @@ class CAnString
 
         CAnString( char * p )
         {
-            len = strlen( p );
+            len = (int) strlen( p );
             my_memcpy( buf, p, len + 1 );
         }
 
@@ -733,7 +734,7 @@ class CStringBuilder
 
         void Append( char * p )
         {
-            Append( p, strlen( p ) );
+            Append( p, (int) strlen( p ) );
         }
 
         void Append( char c )
@@ -758,8 +759,6 @@ class CStringBuilder
 
             if ( request >= allocated )
             {
-                int oldsize = allocated;
-
                 do
                 {
                     allocated *= 2;
@@ -1305,9 +1304,9 @@ extern "C" int main( int argc, char * argv[] )
     for ( int i = 1; i < argc; i++ )
     {
         char * parg = argv[ i ];
-        int arglen = strlen( parg );
+        size_t arglen = strlen( parg );
         char c0 = parg[ 0 ];
-        char c1 = tolower( parg[ 1 ] );
+        char c1 = (char) tolower( parg[ 1 ] );
 
         if ( '-' == c0 || '/' == c0 )
         {
@@ -1335,8 +1334,8 @@ extern "C" int main( int argc, char * argv[] )
         }
         else
         {
-            int l = strlen( argv[ i ] );
-            int inputlen = strlen( input );
+            size_t l = strlen( argv[ i ] );
+            size_t inputlen = strlen( input );
 
             if ( ( l + inputlen ) > _countof( input ) )
             {
@@ -1363,7 +1362,7 @@ extern "C" int main( int argc, char * argv[] )
     try
     {
         strlwr( input );
-        int inputLen = strlen( input );
+        size_t inputLen = strlen( input );
         int uniqueWords = 0;
 
         g_SortedWords = new CRealDictionary();
@@ -1383,7 +1382,7 @@ extern "C" int main( int argc, char * argv[] )
 
         long filelen = portable_filelen( fileDictionary.fp );
         unique_ptr<char> dictionary( new char [ filelen + 1 ] );
-        long lread = fread( dictionary.get(), filelen, 1, fileDictionary.fp );
+        size_t lread = fread( dictionary.get(), filelen, 1, fileDictionary.fp );
         if ( 1 != lread )
         {
             printf( "unable to read dictionary file\n" );
@@ -1454,7 +1453,7 @@ extern "C" int main( int argc, char * argv[] )
         g_Results = new CAnagramSet();
 
         CAnString startingInput( input );
-        SortChars( startingInput.buf, inputLen );
+        SortChars( startingInput.buf, (int) inputLen );
         //qsort( startingInput.buf, inputLen, 1, compare );
 
         // Find single-word anagrams
