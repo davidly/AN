@@ -26,6 +26,7 @@ using namespace std::chrono;
     extern "C" unsigned long __stdcall GetModuleFileNameA( void * module, char * filename, unsigned long size );
     #define PATH_MAX 300
 
+#pragma warning( disable: 4100 ) // unreferenced formal parameter
     char * realpath( char * exepath, char * output )
     {
         // ignore exepath since NULL refers to that module
@@ -34,6 +35,7 @@ using namespace std::chrono;
 
         return output;
     } //realpath
+#pragma warning( default: 4100 ) // unreferenced formal parameter
 
 #else // likely G++ / Clang++
 
@@ -48,16 +50,16 @@ using namespace std::chrono;
         template < typename T, size_t N > size_t _countof( T ( & arr )[ N ] ) { return std::extent< T[ N ] >::value; }
     #endif
 
-    #ifndef strlwr
-        void strlwr( char * s )
+    char * strlwr( char * s )
+    {
+        char * orig = s;
+        while ( *s )
         {
-            while ( *s )
-            {
-                *s = tolower( *s );
-                s++;
-            }
+            *s = tolower( *s );
+            s++;
         }
-    #endif
+        return orig;
+    }
 
 #endif
 
@@ -1541,6 +1543,7 @@ extern "C" int main( int argc, char * argv[] )
         printf( "longestchain %d, unused %d, moreThan5 %d, collisions %d, singles %d\n", longestChain, unused, moreThan5, collisions, singles );
 #endif
 
+        delete g_SortedWords;
     }
     catch( ... )
     {
