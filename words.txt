@@ -3608,6 +3608,7 @@ badly
 badminton
 badness
 badtempered
+bae
 baffle
 baffled
 bafflement
@@ -4115,6 +4116,7 @@ bazaar
 bazaars
 bazooka
 bazookas
+bb
 be
 beach
 beachcomber
@@ -4790,6 +4792,7 @@ binds
 bindweed
 bing
 binge
+bingewatch
 bingo
 binnacle
 binocular
@@ -5414,6 +5417,7 @@ bogs
 bogus
 bogy
 bohemian
+boi
 boil
 boiled
 boiler
@@ -5682,6 +5686,7 @@ bougainvillea
 bough
 boughs
 bought
+bougie
 boulder
 boulders
 boulevard
@@ -6166,6 +6171,7 @@ brokerage
 brokered
 brokers
 broking
+bromance
 bromide
 bromides
 bromine
@@ -6226,6 +6232,7 @@ browser
 browsers
 browses
 browsing
+bruh
 bruise
 bruised
 bruiser
@@ -8583,6 +8590,7 @@ clannish
 clans
 clansmen
 clap
+clapback
 clapped
 clapper
 clappers
@@ -8735,6 +8743,7 @@ cleverness
 cliche
 cliches
 click
+clickbait
 clicked
 clicking
 clicks
@@ -8795,6 +8804,7 @@ clips
 clique
 cliques
 cliquey
+clit
 clitoral
 clitoris
 cloaca
@@ -12808,6 +12818,7 @@ deer
 deerstalker
 deerstalkers
 deerstalking
+deets
 deface
 defaced
 defaces
@@ -15072,6 +15083,8 @@ dizziness
 dizzy
 dizzying
 dizzyingly
+dm
+dms
 do
 doberman
 doc
@@ -15248,6 +15261,7 @@ doom
 doomed
 dooming
 dooms
+doomscroll
 doomsday
 door
 doorbell
@@ -15411,6 +15425,7 @@ dowse
 dowser
 dowsers
 dowsing
+dox
 doyen
 doyenne
 doyens
@@ -16032,6 +16047,7 @@ earthy
 earwax
 earwig
 earwigs
+earworm
 ease
 eased
 easel
@@ -16277,6 +16293,7 @@ egoists
 egomania
 egomaniac
 egomaniacs
+egot
 egotism
 egotist
 egotistic
@@ -16703,6 +16720,7 @@ emitted
 emitter
 emitters
 emitting
+emoji
 emollient
 emolument
 emoluments
@@ -18727,6 +18745,7 @@ faltered
 faltering
 falteringly
 falters
+fam
 fame
 famed
 familial
@@ -18815,10 +18834,12 @@ farriers
 farrow
 farseeing
 farsighted
+fart
 farther
 farthest
 farthing
 farthings
+farting
 fascia
 fascias
 fascinate
@@ -19421,6 +19442,7 @@ finn
 finned
 finnish
 fins
+finsta
 fiord
 fiords
 fir
@@ -20085,6 +20107,7 @@ folly
 foment
 fomented
 fomenting
+fomo
 fond
 fondant
 fonder
@@ -20889,6 +20912,8 @@ frying
 fryings
 fuchsia
 fuchsias
+fuck
+fucking
 fuddle
 fuddled
 fuddles
@@ -23220,6 +23245,7 @@ hangmen
 hangouts
 hangover
 hangovers
+hangry
 hangs
 hangup
 hanker
@@ -24435,6 +24461,7 @@ hornbills
 horned
 hornet
 hornets
+horngry
 hornpipe
 hornpipes
 horns
@@ -25017,6 +25044,7 @@ icosahedra
 icosahedral
 icosahedron
 icy
+icymi
 id
 idaho
 idea
@@ -25079,6 +25107,7 @@ idiot
 idiotic
 idiotically
 idiots
+idk
 idle
 idled
 idleness
@@ -26702,8 +26731,10 @@ inspire
 inspired
 inspires
 inspiring
+inspo
 instabilities
 instability
+instagram
 install
 installable
 installation
@@ -27441,6 +27472,7 @@ irking
 irks
 irksome
 irksomeness
+irl
 iron
 ironage
 ironed
@@ -28915,6 +28947,7 @@ lazing
 lazuli
 lazy
 lazybones
+le
 lea
 leach
 leached
@@ -29261,6 +29294,7 @@ levy
 levying
 lewd
 lewdness
+lewk
 lexeme
 lexemes
 lexical
@@ -29903,6 +29937,7 @@ loiterer
 loiterers
 loitering
 loiters
+lol
 loll
 lolled
 lollies
@@ -30736,6 +30771,7 @@ mansion
 mansions
 mansized
 manslaughter
+mansplain
 mantel
 mantelpiece
 mantelpieces
@@ -31329,6 +31365,7 @@ megatons
 megavolt
 megawatt
 megawatts
+meh
 meiosis
 meiotic
 melancholia
@@ -31374,6 +31411,7 @@ membership
 memberships
 membrane
 membranes
+meme
 memento
 memo
 memoir
@@ -36473,6 +36511,8 @@ pediments
 pedlar
 pedlars
 pedology
+pee
+peeing
 peek
 peeked
 peeking
@@ -36564,6 +36604,7 @@ penile
 peninsula
 peninsular
 peninsulas
+penis
 penitence
 penitent
 penitential
@@ -37144,6 +37185,7 @@ phosphorous
 phosphors
 phosphorus
 photo
+photobomb
 photocells
 photochemical
 photochemically
@@ -38278,6 +38320,7 @@ portraying
 portrays
 ports
 portugal
+pos
 pose
 posed
 poseidon
@@ -40643,6 +40686,7 @@ rancid
 rancorous
 rancour
 rand
+rando
 random
 randomisation
 randomise
@@ -45287,6 +45331,7 @@ selfesteem
 selfevident
 selfgoverning
 selfgovernment
+selfie
 selfinflicted
 selfinterest
 selfish
@@ -45551,6 +45596,7 @@ serving
 servings
 servitude
 sesame
+sesh
 sesotho
 sessile
 session
@@ -45625,10 +45671,12 @@ sexists
 sexless
 sexologists
 sexology
+sext
 sextant
 sextants
 sextet
 sextets
+sexting
 sexton
 sextons
 sextuplet
@@ -45936,6 +45984,8 @@ shirt
 shirtless
 shirts
 shirtsleeves
+shit
+shitting
 shiver
 shivered
 shivering
@@ -48585,6 +48635,7 @@ stampers
 stamping
 stampings
 stamps
+stan
 stance
 stances
 stanchion
@@ -49755,6 +49806,7 @@ subtractively
 subtracts
 subtropical
 subtropics
+subtweet
 subtype
 subtypes
 subunit
@@ -50309,6 +50361,7 @@ survives
 surviving
 survivor
 survivors
+sus
 susceptibilities
 susceptibility
 susceptible
@@ -50535,6 +50588,7 @@ swivel
 swivelled
 swivelling
 swivels
+swole
 swollen
 swoon
 swooned
@@ -51756,6 +51810,7 @@ thoroughgoing
 thoroughly
 thoroughness
 those
+thot
 thou
 though
 thought
@@ -52325,6 +52380,7 @@ top
 topaz
 topazes
 topcoat
+tope
 topheavy
 topiary
 topic
@@ -53378,6 +53434,7 @@ turboprop
 turbot
 turbulence
 turbulent
+turd
 tureen
 tureens
 turf
@@ -53476,6 +53533,7 @@ twelves
 twenties
 twentieth
 twenty
+twerk
 twice
 twiddle
 twiddled
@@ -54404,6 +54462,7 @@ unfounded
 unfreeze
 unfreezing
 unfrequented
+unfriend
 unfriendlier
 unfriendliest
 unfriendliness
@@ -55522,6 +55581,7 @@ vacates
 vacating
 vacation
 vacations
+vacay
 vaccinate
 vaccinated
 vaccinating
@@ -56958,6 +57018,7 @@ wellwisher
 wellwishers
 wellworn
 welly
+welp
 welsh
 welshman
 welt
@@ -57936,6 +57997,7 @@ yeas
 yeast
 yeasts
 yeasty
+yeet
 yell
 yelled
 yelling
@@ -58084,6 +58146,7 @@ zippers
 zipping
 zippy
 zips
+zit
 zither
 zithers
 zombi
@@ -58109,67 +58172,4 @@ zooplankton
 zoos
 zulu
 zulus
-bae
-bb
-bingewatch
-boi
-bougie
-bromance
-bruh
-clapback
-clickbait
-deets
-dm
-dms
-doomscroll
-dox
-earworm
-egot
-emoji
-fam
-finsta
-fomo
-hangry
-horngry
-icymi
-idk
-inspo
-instagram
-irl
-lewk
-yeet
-lol
-mansplain
-meh
-meme
-photobomb
-pos
-rando
-selfie
-sesh
-sext
-sexting
-stan
-subtweet
-sus
-swole
-thot
-tope
-twerk
-unfriend
-vacay
-welp
-fuck
-fucking
-shit
-shitting
-fart
-farting
-pee
-peeing
-le
-zit
-clit
-penis
-turd
 
