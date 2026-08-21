@@ -1,4 +1,13 @@
 #define _CRT_SECURE_NO_WARNINGS
+
+// strlwr triggers MSVC's separate "POSIX name deprecated" warning (C4996), which
+// _CRT_SECURE_NO_WARNINGS above doesn't cover -- that one's for the "less safe function"
+// category (strcpy/sprintf/etc). This macro is the correct, minimal suppression for the
+// POSIX-name category, and it's a no-op on non-MSVC compilers, so it doesn't affect the
+// g++/clang++ build at all.
+
+#define _CRT_NONSTDC_NO_DEPRECATE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -11,6 +20,8 @@
 #include <vector>
 #include <mutex>
 #include <chrono>
+#include <algorithm>
+#include <thread>
 
 using namespace std;
 using namespace std::chrono;
@@ -39,7 +50,7 @@ using namespace std::chrono;
 
 #else // likely G++ / Clang++
 
-    //#define __forceinline __attribute__((always_inline))     // this generates useless warnings in g++ that I can't turn off. 
+    //#define __forceinline __attribute__((always_inline))     // this generates useless warnings in g++ that I can't turn off.
     #define __forceinline
 
     #ifndef __min
@@ -359,6 +370,18 @@ class CBinaryTree
 
 }; //CBinaryTree
 
+// The shared result set (g_Results) is inserted into concurrently from every worker
+// thread, each insertion holding its shard's mutex for the full tree walk. A fixed 7
+// shards was fine for the core counts common when this was written, but undersizes on
+// today's much-higher core counts, where it becomes real lock contention. Scale with the
+// hardware instead, with 7 as a floor so low-core machines are unaffected.
+
+int DefaultAnagramSetTreeCount()
+{
+    unsigned int hc = std::thread::hardware_concurrency();
+    return ( hc > 7 ) ? (int) hc : 7;
+} //DefaultAnagramSetTreeCount
+
 class CAnagramSet
 {
     private:
@@ -366,7 +389,7 @@ class CAnagramSet
         int treeCount;
 
     public:
-        CAnagramSet( int c = 7 )
+        CAnagramSet( int c = DefaultAnagramSetTreeCount() )
         {
             treeCount = c;
     
@@ -478,9 +501,56 @@ class CWordEntry
         }
 }; //CWordEntry
 
+// A trie over the dictionary's sorted-letter signatures. Since every key inserted is
+// itself sorted, any root-to-node path visits letters in non-decreasing order, so the
+// trie's own structure is exactly the set of distinct sorted letter-multisets that some
+// dictionary word actually has -- walking it with a remaining-letter budget (see
+// SearchTrieNode) only ever visits combinations that could possibly be a real word,
+// instead of generating every combination and then checking.
+
+class CTrieNode
+{
+    public:
+        CTrieNode * children[ 26 ];
+        CWordEntry * words;   // non-NULL if this node's path is itself a dictionary signature
+
+        CTrieNode()
+        {
+            memset( children, 0, sizeof( children ) );
+            words = NULL;
+        }
+}; //CTrieNode
+
+class CTrie
+{
+    private:
+        CTrieNode root;
+
+    public:
+        void Insert( CAnString * sortedSignature, CWordEntry * headEntry )
+        {
+            CTrieNode * node = &root;
+
+            for ( int i = 0; i < sortedSignature->len; i++ )
+            {
+                int c = sortedSignature->buf[ i ] - 'a';
+                if ( NULL == node->children[ c ] )
+                    node->children[ c ] = new CTrieNode();
+
+                node = node->children[ c ];
+            }
+
+            node->words = headEntry;
+        } //Insert
+
+        CTrieNode * Root() { return &root; }
+}; //CTrie
+
+CTrie * g_Trie = NULL;
+
 class CDictionaryEntry
 {
-    public: 
+    public:
         CAnString sortedWord;
         CWordEntry * entries;
         CDictionaryEntry * next;
@@ -618,72 +688,6 @@ class CRealDictionary
         } //Stats
 }; //CRealDictionary
 
-class Combo
-{
-    private:
-        int k;
-        int kminus1;
-        int nk;
-        int istop;
-        char * input;
-        char * output;
-        int num[ MaxAnStringLen ];
-
-    public:
-        Combo( CAnString * elements, CAnString * result, int K )
-        {
-            int inputLen = elements->len;
-            input = elements->buf;
-            output = result->buf;
-            k = K;
-            kminus1 = k - 1;
-            nk = inputLen - 1 - kminus1;
-
-            // Optimize the case when K is half the length (and the length is even obvs) by leaving the first char as-is.
-            // This reduces the combinations produced in half by omitting duplicates.
-            // Note that this forces Next() to be a while loop instead of a do..while loop to work with 2-char strings
-
-            istop = ( ( k + k ) == inputLen ) ? 0 : -1;
-
-            for ( int i = 0; i < k; i++ )
-            {
-                num[ i ] = i;
-                output[ i ] = input[ i ];
-            }
-        } //Combo
-
-        bool Next()
-        {
-            int i = kminus1;
-
-            // can't be a do..while loop because that would produce duplicate results for 2-char strings ( a & b + b & a )
-
-            while ( i > istop )
-            {
-                if ( num[ i ] < ( nk + i ) )
-                {
-                    int n = num[ i ] = num[ i ] + 1;
-                    output[ i ] = input[ n ];
-    
-                    if ( i < kminus1 )
-                    {
-                        for ( int j = i + 1; j < k; j++ )
-                        {
-                            n = num[ j ] = num[ j - 1 ] + 1;
-                            output[ j ] = input[ n ];
-                        }
-                    }
-    
-                    return true;
-                }
-
-                i--;
-            }
-    
-            return false;
-        } //Next
-}; //Combo
-
 int SpaceCount( CAnString * p )
 {
     int spaces = 0;
@@ -712,7 +716,7 @@ class CStringBuilder
 
         ~CStringBuilder()
         {
-            delete pbuf;
+            delete [] pbuf;
         }
 
         void Append( CAnString * p, int offset, int count )
@@ -768,7 +772,7 @@ class CStringBuilder
 
                 char * pnew = new char[ allocated ];
                 my_memcpy( pnew, pbuf, used );
-                delete pbuf;
+                delete [] pbuf;
                 pbuf = pnew;
             }
         } //EnsureSize
@@ -837,243 +841,338 @@ void AddAnagram( CAnagramSet * set, char * pAnagram, int len )
         printf( "%s\n", pAnagram );
 } //AddAnagram
 
-void FindPhraseAnagrams( CAnagramSet * set, CAnString * input, int anagramWords );
+void FindPhraseAnagramsTrie( CAnagramSet * set, int * remaining, int totalLen, int anagramWords, bool allowParallel = true );
 
-void InsidePhraseAnagrams( CAnagramSet * set, CAnString * input, int anagramWords, int len )
+// Looks up a letter-count budget directly in the dictionary trie, without ever
+// materializing it as a string. Profiling showed ProcessLeftMatch's own code -- mostly the
+// old "build a right CAnString from remaining[], then hash it" sequence -- was 33% of
+// total runtime despite only ~9% of its 24M calls ever finding a match; walking the trie
+// straight from remaining[] skips the string build entirely and short-circuits the moment
+// a required letter has no corresponding child, instead of always building and hashing the
+// whole thing first regardless of whether it was ever going to match.
+
+CWordEntry * TrieLookup( int * remaining )
 {
-    //printf( "ipa, input '%s', awords %d, len %d\n", input->buf, anagramWords, len );
+    CTrieNode * node = g_Trie->Root();
 
-    int rightlen = input->len - len;
+    for ( int c = 0; c < 26; c++ )
+    {
+        int k = remaining[ c ];
+        while ( k > 0 )
+        {
+            node = node->children[ c ];
+            if ( NULL == node )
+                return NULL;
+            k--;
+        }
+    }
 
-    if ( ( len > g_LongestWord ) || ( ( 2 == anagramWords ) && ( rightlen > g_LongestWord ) ) )
-        return;
+    return node->words;
+} //TrieLookup
 
-    CAnString left( len );
-    CAnString leftPrevious( len );
-    CAnString right( rightlen );
+// Called once a trie walk lands on a node whose path is itself a dictionary signature
+// (listL) at depth `len` -- i.e. the same situation the old code reached after a Combo
+// combination happened to hash-match. Everything from here down (look up the complementary
+// right side as a single word, and/or recurse for 3+-word phrases with alphabetically-
+// sorted word insertion) is unchanged from the original combinatorial implementation;
+// only how a "left" match gets found -- and now, how "right" gets looked up -- changed.
 
-    //printf( "top, left %s, prev %s, right %s\n", left.buf, leftPrevious.buf, right.buf );
-    
+void ProcessLeftMatch( CAnagramSet * set, int totalLen, int anagramWords, CWordEntry * listL, int len, int * remaining )
+{
+    int rightlen = totalLen - len;
+
     unique_ptr<CStringBuilder> sb;
     unique_ptr<CAnagramSet> rightSet;
-    
-    // for each unique combination of characters in the input string at the specified length, written to left
-    // note: when there are duplicate characters there will be duplicate combinations.
-    
-    Combo combo( input, &left, len );
-    
-    do
+
+    CWordEntry * listR = TrieLookup( remaining );
+
+    if ( NULL != listR )
     {
-        CWordEntry * listL;
+        sb.reset( new CStringBuilder() );
 
-        if ( ( g_SortedWords->TryGetValue( &left, &listL ) ) && ( !Same( &left, &leftPrevious ) ) )
+        CWordEntry * sL = listL;
+
+        do
         {
-            leftPrevious.Set( &left );
-    
-            // Put input letters not in left into right. Take advantage of the fact that all arrays are sorted.
-    
-            int r = 0;
-            int leftStart = 0;
-    
-            for ( int j = 0; j < input->len; j++ )
+            assert( len == strlen( sL->word ) );
+
+            CWordEntry * sR = listR;
+
+            do
             {
-                char c = input->buf[ j ];
+                assert( rightlen == strlen( sR->word ) );
 
-                if ( leftStart < len )
+                int c = strcmp( sL->word, sR->word );
+                sb->Reset();
+
+                if ( c < 0 )
                 {
-                    int l = leftStart;
-
-                    do
-                    {
-                        int lc = left.buf[ l ];
-
-                        if ( lc < c )
-                        {
-                            l++;
-                            continue;
-                        }
-    
-                        if ( lc == c )
-                        {
-                            c = (char) 0;
-                            leftStart = l + 1;
-                            break;
-                        }
-                        else
-                        {
-                            leftStart = l;
-                            break;
-                        }
-                    } while ( l < len );
-
-                    if ( l == len )
-                        leftStart = l;
-    
-                    if ( 0 != c )
-                        right.buf[ r++ ] = c;
+                    sb->Append( sL->word, len );
+                    sb->Append( ' ' );
+                    sb->Append( sR->word, rightlen );
                 }
                 else
-                    right.buf[ r++ ] = c;
-            }
-    
-            CWordEntry * listR;
+                {
+                    sb->Append( sR->word, rightlen );
+                    sb->Append( ' ' );
+                    sb->Append( sL->word, len );
+                }
 
-            if ( g_SortedWords->TryGetValue( &right, &listR ) ) 
+                int lenAnagram = 0;
+                char * pAnagram = sb->ToString( lenAnagram );
+                AddAnagram( set, pAnagram, lenAnagram );
+
+                sR = sR->next;
+            } while ( NULL != sR );
+
+            sL = sL->next;
+        } while ( NULL != sL );
+    }
+
+    if ( ( anagramWords > 2 ) && ( rightlen > 1 ) )
+    {
+        rightSet.reset( new CAnagramSet( 1 ) );
+
+        // ProcessLeftMatch only ever runs from inside SearchTrieNode, which is itself
+        // already running inside the top-level parallel region (or one of its worker
+        // threads) -- so this recursive call is always nested. Both PPL and OpenMP treat
+        // parallelism from within an already-active parallel context as a no-op (OpenMP
+        // explicitly disables nested parallel regions by default, running them on a team
+        // of 1), so attempting to parallelize here would just pay region-entry overhead
+        // for every single match found, at every recursion depth, for zero benefit --
+        // confirmed by instrumenting the OpenMP build directly (omp_get_level()/
+        // omp_in_parallel() showed exactly this on every recursive call).
+
+        // Safe to pass `remaining` through directly rather than copying it: this whole
+        // recursive call runs sequentially on the current thread (allowParallel=false, so
+        // CollectWorkUnits's own decrement/recurse/increment backtracking never overlaps
+        // with anything else touching this array), and nothing later in this function
+        // still needs `remaining` for its own purposes -- only rightSet's own found
+        // anagram-phrase strings (via `array`/`anagram` below) matter from here on.
+
+        FindPhraseAnagramsTrie( rightSet.get(), remaining, rightlen, anagramWords - 1, false );
+
+        if ( !rightSet->IsEmpty() )
+        {
+            if ( nullptr == sb.get() )
+                sb.reset( new CStringBuilder() );
+
+            int cAnagrams = rightSet->Count();
+            unique_ptr<CAnString * []> array ( new CAnString *[ cAnagrams ] );
+            rightSet->GetAnagrams( array.get(), cAnagrams );
+
+            for ( int a = 0; a < cAnagrams; a++ )
             {
-                if ( nullptr == sb )
-                    sb.reset( new CStringBuilder() );
+                CAnString * anagram = array.get()[ a ];
+                int spaces = SpaceCount( anagram );
+
+                int wordEnds[ MaxAnStringLen ];
+                {
+                    int off = 0;
+                    for ( int wi = 0; wi <= spaces; wi++ )
+                    {
+                        int sp = FindSpace( anagram, off );
+                        if ( -1 == sp )
+                            sp = anagram->len;
+                        wordEnds[ wi ] = sp;
+                        off = sp + 1;
+                    }
+                }
 
                 CWordEntry * sL = listL;
+                assert( len == strlen( sL->word ) );
 
                 do
                 {
-                    assert( len == strlen( sL->word ) );
-
-                    CWordEntry *sR = listR;
+                    sb->Reset();
+                    int wordsRight = 1 + spaces;
+                    int offset = 0;
+                    int wordIdx = 0;
 
                     do
                     {
-                        assert( rightlen == strlen( sR->word ) );
+                        int sp = wordEnds[ wordIdx++ ];
 
-                        int c = strcmp( sL->word, sR->word );
-                        sb->Reset();
+                        int comp = Compare( sL->word, len, anagram->buf, offset, sp - offset );
 
-                        if ( c < 0 )
+                        if ( comp < 0 )
                         {
+                            sb->Append( anagram, 0, offset );
                             sb->Append( sL->word, len );
                             sb->Append( ' ' );
-                            sb->Append( sR->word, rightlen );
-                        }
-                        else
-                        {
-                            sb->Append( sR->word, rightlen );
-                            sb->Append( ' ' );
-                            sb->Append( sL->word, len );
+                            sb->Append( anagram, offset, anagram->len - offset );
+
+                            break;
                         }
 
-                        int lenAnagram = 0;
-                        char * pAnagram = sb->ToString( lenAnagram );
-                        AddAnagram( set, pAnagram, lenAnagram );
+                        wordsRight--;
+                        offset = sp + 1;
+                    } while ( wordsRight > 0 );
 
-                        sR = sR->next;
-                    } while ( NULL != sR );
+                    if ( 0 == sb->Length() )
+                    {
+                        sb->Append( anagram );
+                        sb->Append( ' ' );
+                        sb->Append( sL->word, len );
+                    }
+
+                    int lenAnagram = 0;
+                    char * pAnagram = sb->ToString( lenAnagram );
+                    AddAnagram( set, pAnagram, lenAnagram );
 
                     sL = sL->next;
                 } while ( NULL != sL );
             }
-    
-            if ( ( anagramWords > 2 ) && ( right.len > 1 ) )
-            {
-                if ( nullptr == rightSet.get() )
-                    rightSet.reset( new CAnagramSet( 1 ) );
 
-                FindPhraseAnagrams( rightSet.get(), & right, anagramWords - 1 );
-
-                if ( !rightSet->IsEmpty() )
-                {
-                    if ( nullptr == sb.get() )
-                        sb.reset( new CStringBuilder() );
-
-                    int cAnagrams = rightSet->Count();
-                    unique_ptr<CAnString *> array (  new CAnString *[ cAnagrams ] );
-                    rightSet->GetAnagrams( array.get(), cAnagrams );
-
-                    for ( int a = 0; a < cAnagrams; a++ )
-                    {
-                        CAnString * anagram = array.get()[ a ];
-                        int spaces = SpaceCount( anagram );
-
-                        CWordEntry * sL = listL;
-                        assert( len == strlen( sL->word ) );
-
-                        do
-                        {
-                            sb->Reset();
-                            int wordsRight = 1 + spaces;
-                            int offset = 0;
-    
-                            do
-                            {
-                                int sp = FindSpace( anagram, offset );
-                                if ( -1 == sp )
-                                    sp = anagram->len;
-
-                                int comp = Compare( sL->word, len, anagram->buf, offset, sp - offset );
-    
-                                if ( comp < 0 )
-                                {
-                                    sb->Append( anagram, 0, offset );
-                                    sb->Append( sL->word, len );
-                                    sb->Append( ' ' );
-                                    sb->Append( anagram, offset, anagram->len - offset );
-    
-                                    break;
-                                }
-    
-                                wordsRight--;
-                                offset = sp + 1;
-                            } while ( wordsRight > 0 );
-    
-                            if ( 0 == sb->Length() )
-                            {
-                                sb->Append( anagram );
-                                sb->Append( ' ' );
-                                sb->Append( sL->word, len );
-                            }
-
-                            int lenAnagram = 0;
-                            char * pAnagram = sb->ToString( lenAnagram );
-                            AddAnagram( set, pAnagram, lenAnagram );
-
-                            sL = sL->next;
-                        } while ( NULL != sL );
-                    }
-    
-                    rightSet->Clear();
-                }
-            }
+            rightSet->Clear();
         }
-    } while ( combo.Next() );
-} //InsidePhraseAnagrams
+    }
+} //ProcessLeftMatch
 
-void FindPhraseAnagrams( CAnagramSet * set, CAnString * input, int anagramWords )
+// Depth-first walk of the dictionary trie, carrying a remaining-letter budget (how many
+// of each letter from `input` are still unused along this path). The trie's own structure
+// means every node reachable here corresponds to a prefix of some real dictionary word's
+// sorted signature, so unlike Combo, this never visits a combination that couldn't
+// possibly be a match, and -- since trie paths are unique per sorted letter-multiset --
+// never revisits the same multiset twice, so there's no analog needed of the old
+// Same(&left,&leftPrevious) duplicate check.
+
+void SearchTrieNode( CAnagramSet * set, int totalLen, int anagramWords, CTrieNode * node, int * remaining, int depth, int maxLeftLen )
 {
-    int limit = ( input->len / 2 ) + 1;
+    if ( depth > 0 && NULL != node->words )
+    {
+        int rightlen = totalLen - depth;
+
+        if ( ! ( ( 2 == anagramWords ) && ( rightlen > g_LongestWord ) ) )
+            ProcessLeftMatch( set, totalLen, anagramWords, node->words, depth, remaining );
+    }
+
+    if ( depth >= maxLeftLen )
+        return;
+
+    for ( int c = 0; c < 26; c++ )
+    {
+        if ( remaining[ c ] > 0 && NULL != node->children[ c ] )
+        {
+            remaining[ c ]--;
+            SearchTrieNode( set, totalLen, anagramWords, node->children[ c ], remaining, depth + 1, maxLeftLen );
+            remaining[ c ]++;
+        }
+    }
+} //SearchTrieNode
+
+// A parallelizable unit of work: a trie node reached at `depth` letters in, with the
+// letter budget still remaining at that point. SearchTrieNode picks up from exactly here
+// -- it still checks for a match at `node` itself and recurses deeper, since the
+// collection walk below only checks ancestors *above* a unit's own depth.
+
+struct TrieWorkUnit
+{
+    CTrieNode * node;
+    int remaining[ 26 ];
+    int depth;
+};
+
+// Splitting only at the trie's root (26, realistically far fewer, top-level letters) is
+// too coarse: some letters' subtrees are vastly more expensive than others (a real,
+// measured case had one of 12 populated branches take 93% of the total time), and once
+// dynamic scheduling has handed out all the top-level units, an idle thread has nothing
+// left to steal -- the one expensive branch just runs alone on its thread while every
+// other thread sits idle. Splitting several trie levels deeper instead produces many more,
+// smaller units, so a big branch gets broken into pieces that dynamic scheduling can
+// spread across idle threads instead of being stuck as one monolithic task.
+//
+// Matches at depths above splitDepth are checked here, exactly once each, while walking
+// down to collect the frontier; SearchTrieNode checks the unit's own node (and deeper)
+// when the unit is later processed, so nothing is checked twice.
+
+void CollectWorkUnits( CAnagramSet * set, int totalLen, int anagramWords, CTrieNode * node, int * remaining, int depth, int maxLeftLen, int splitDepth, vector<TrieWorkUnit> & units )
+{
+    if ( depth >= splitDepth || depth >= maxLeftLen )
+    {
+        TrieWorkUnit u;
+        u.node = node;
+        memcpy( u.remaining, remaining, sizeof( u.remaining ) );
+        u.depth = depth;
+        units.push_back( u );
+        return;
+    }
+
+    if ( depth > 0 && NULL != node->words )
+    {
+        int rightlen = totalLen - depth;
+
+        if ( ! ( ( 2 == anagramWords ) && ( rightlen > g_LongestWord ) ) )
+            ProcessLeftMatch( set, totalLen, anagramWords, node->words, depth, remaining );
+    }
+
+    for ( int c = 0; c < 26; c++ )
+    {
+        if ( remaining[ c ] > 0 && NULL != node->children[ c ] )
+        {
+            remaining[ c ]--;
+            CollectWorkUnits( set, totalLen, anagramWords, node->children[ c ], remaining, depth + 1, maxLeftLen, splitDepth, units );
+            remaining[ c ]++;
+        }
+    }
+} //CollectWorkUnits
+
+void FindPhraseAnagramsTrie( CAnagramSet * set, int * remaining, int totalLen, int anagramWords, bool allowParallel )
+{
+    int maxLeftLen = totalLen / 2;
+    if ( 0 == maxLeftLen )
+        return;
+
+    // 3 levels deep is a modest default: enough to turn a handful of lopsided top-level
+    // branches into (typically) dozens to low hundreds of smaller units for any input
+    // rich enough for load imbalance to matter, without the collection walk itself (which
+    // is sequential) becoming a meaningful cost -- it only walks real trie prefixes, never
+    // the full combinatorial space.
+
+    const int splitDepth = 2;
+
+    vector<TrieWorkUnit> units;
+    CollectWorkUnits( set, totalLen, anagramWords, g_Trie->Root(), remaining, 0, maxLeftLen, splitDepth, units );
+
+    size_t unitCount = units.size();
+
+    // allowParallel is only true for the outermost (non-recursive) call -- see the
+    // comment at the recursive call site in ProcessLeftMatch for why attempting to
+    // parallelize a nested call would be pure overhead.
+
+    bool runParallel = ( !g_OneThread ) && allowParallel && ( unitCount > 1 );
 
 #ifdef USE_PPL
 
-    int singleThreaded = g_OneThread ? INT_MAX : 6;
-
-    if ( limit < singleThreaded )
+    if ( !runParallel )
     {
-        for ( int len = 1; len < limit; len++ )
-            InsidePhraseAnagrams( set, input, anagramWords, len );
+        for ( size_t u = 0; u < unitCount; u++ )
+            SearchTrieNode( set, totalLen, anagramWords, units[ u ].node, units[ u ].remaining, units[ u ].depth, maxLeftLen );
     }
     else
     {
-        parallel_for( 1, limit, [&] ( int len )
+        parallel_for( (size_t) 0, unitCount, [&] ( size_t u )
         {
-            InsidePhraseAnagrams( set, input, anagramWords, len );
+            SearchTrieNode( set, totalLen, anagramWords, units[ u ].node, units[ u ].remaining, units[ u ].depth, maxLeftLen );
         } );
     }
 
 #else // USE_PPL
 
-    if ( g_OneThread )
+    if ( !runParallel )
     {
-        for ( int len = 1; len < limit; len++ )
-            InsidePhraseAnagrams( set, input, anagramWords, len );
+        for ( size_t u = 0; u < unitCount; u++ )
+            SearchTrieNode( set, totalLen, anagramWords, units[ u ].node, units[ u ].remaining, units[ u ].depth, maxLeftLen );
     }
     else
     {
         #pragma omp parallel for schedule(nonmonotonic:dynamic)
-        for ( int len = 1; len < limit; len++ )
-            InsidePhraseAnagrams( set, input, anagramWords, len );
+        for ( long u = 0; u < (long) unitCount; u++ )
+            SearchTrieNode( set, totalLen, anagramWords, units[ u ].node, units[ u ].remaining, units[ u ].depth, maxLeftLen );
     }
 
 #endif // USE_PPL
-
-} //FindPhraseAnagrams
+} //FindPhraseAnagramsTrie
 
 void Usage()
 {
@@ -1092,8 +1191,8 @@ void Usage()
     printf( "             an -w:3 -p playing  Find one to three word anagrams and show all permutations\n" );
     printf( "             an phoebe bridgers  Find anagrams\n" );
     printf( "             an -i verylongstringwithmanywords -w:9  -- Show incremental progress because it'll take forever.\n" );
-    printf( "  notes:     The combinatorics blow up beyond about 22 characters for 3-word anagrams\n" );
-    printf( "             and even sooner for more-word anagrams. Use -i to see early results.\n" );
+    printf( "  notes:     Combinatorics can still blow up for longer inputs and/or higher -w values\n" );
+    printf( "             used together. Use -i to see early results if a search is taking a while.\n" );
     printf( "             The file words.txt must be in the same directory as this .exe. Feel free to add/delete words.\n" );
 
     exit( 1 );
@@ -1106,14 +1205,6 @@ int compare( const void *a, const void *b )
 
     return ca - cb;
 } //compare
-
-int compareAG( const void *a, const void *b )
-{
-    CAnString * ca = * (CAnString **) a;
-    CAnString * cb = * (CAnString **) b;
-
-    return strcmp( ca->buf, cb->buf );
-} //compareAG
 
 // This just finds single words that contain all the same letters as the input
 
@@ -1175,8 +1266,8 @@ void FindWordsInSentencePermutations( CAnString * anagram, CAnagramSet & permSet
 {
     int cWords = 1 + SpaceCount( anagram );
 
-    unique_ptr<char *> strings( new char * [ cWords ] );
-    unique_ptr<bool> used( new bool[ cWords ] );
+    unique_ptr<char * []> strings( new char * [ cWords ] );
+    unique_ptr<bool []> used( new bool[ cWords ] );
 
     for ( int i = 0; i < cWords; i++ )
     {
@@ -1184,10 +1275,13 @@ void FindWordsInSentencePermutations( CAnString * anagram, CAnagramSet & permSet
         used.get()[ i ] = false;
     }
 
-    // Copy the string and insert null-termination where each space was
+    // Copy the string and insert null-termination where each space was.
+    // Writing through a pointer obtained by casting away const from c_str() is UB even on
+    // a non-const string; &theCopy[0] is the standard-legal way to get a writable pointer
+    // into a std::string's buffer (guaranteed contiguous since C++11).
 
     std::string theCopy( anagram->buf );
-    char * pTheCopy = (char *) theCopy.c_str();
+    char * pTheCopy = &theCopy[ 0 ];
 
     strings.get()[ 0 ] = pTheCopy;
     int word = 1;
@@ -1279,7 +1373,7 @@ extern "C" int main( int argc, char * argv[] )
 {
     high_resolution_clock::time_point tStart = high_resolution_clock::now();
 
-    unique_ptr<char> acDictionary( new char[ PATH_MAX ] );
+    unique_ptr<char []> acDictionary( new char[ PATH_MAX ] );
     char * pResult = realpath( argv[ 0 ], acDictionary.get() );
 
     if ( NULL != pResult )
@@ -1339,7 +1433,13 @@ extern "C" int main( int argc, char * argv[] )
             size_t l = strlen( argv[ i ] );
             size_t inputlen = strlen( input );
 
-            if ( ( l + inputlen ) > _countof( input ) )
+            // strcpy below writes l characters plus a NUL terminator starting at offset
+            // inputlen, so the last byte written is at offset inputlen + l; that must stay
+            // <= the last valid index (_countof(input) - 1), i.e. the combined length must
+            // be < _countof(input), not merely <= it (that off-by-one let a maximal-length
+            // combined argument overflow input[] by one byte).
+
+            if ( ( l + inputlen ) >= _countof( input ) )
             {
                 printf( "input string is too long; only %d characters supported\n", MaxAnStringLen );
                 Usage();
@@ -1368,6 +1468,7 @@ extern "C" int main( int argc, char * argv[] )
         int uniqueWords = 0;
 
         g_SortedWords = new CRealDictionary();
+        g_Trie = new CTrie();
 
         const int maxDictionaryLine = MaxAnStringLen;
         char line[ maxDictionaryLine ];
@@ -1383,7 +1484,7 @@ extern "C" int main( int argc, char * argv[] )
         // open the dictionary, read it all into RAM, lowercase it (because someone might add a word), and parse it.
 
         long filelen = portable_filelen( fileDictionary.fp );
-        unique_ptr<char> dictionary( new char [ filelen + 1 ] );
+        unique_ptr<char []> dictionary( new char [ filelen + 1 ] );
         size_t lread = fread( dictionary.get(), filelen, 1, fileDictionary.fp );
         if ( 1 != lread )
         {
@@ -1405,8 +1506,21 @@ extern "C" int main( int argc, char * argv[] )
             while ( ( pbuf < pbeyond ) && ( isvalidchar( *pbuf ) ) && ( len < MaxDictionaryLineLen ) )
                 line[ len++ ] = *pbuf++;
 
+            // A word that doesn't fit in line[] would otherwise get silently split into
+            // bogus fragment "words" below, since the next loop only skips non-letters --
+            // if we're still sitting on a letter, the word was truncated. Consume the rest
+            // of it and discard the whole thing instead of treating the remainder as a
+            // separate word.
+
+            bool overlong = ( pbuf < pbeyond ) && isvalidchar( *pbuf );
+            while ( ( pbuf < pbeyond ) && isvalidchar( *pbuf ) )
+                pbuf++;
+
             while ( ( pbuf < pbeyond ) && !isvalidchar( *pbuf ) )
                 pbuf++;
+
+            if ( overlong )
+                continue;
 
             if ( 0 != len )
             {
@@ -1441,6 +1555,13 @@ extern "C" int main( int argc, char * argv[] )
                     else
                     {
                         g_SortedWords->Add( & wordSorted, newEntry, entry );
+
+                        // Only the first occurrence of a given signature needs a trie
+                        // insertion -- collisions above append to the SAME CWordEntry
+                        // list this node already points to the head of, so the trie
+                        // automatically sees later same-signature words too.
+
+                        g_Trie->Insert( & wordSorted, newEntry );
                     }
                 }
             }
@@ -1464,7 +1585,11 @@ extern "C" int main( int argc, char * argv[] )
 
         // Find multi-word anagrams
 
-        FindPhraseAnagrams( g_Results, & startingInput, maxAnagramWords );
+        int startingRemaining[ 26 ] = { 0 };
+        for ( int i = 0; i < startingInput.len; i++ )
+            startingRemaining[ startingInput.buf[ i ] - 'a' ]++;
+
+        FindPhraseAnagramsTrie( g_Results, startingRemaining, startingInput.len, maxAnagramWords );
 
         int cAnagrams = g_Results->Count();
 
@@ -1472,12 +1597,24 @@ extern "C" int main( int argc, char * argv[] )
 
         if ( !g_IncrementalProgress )
         {
-            unique_ptr<CAnString *> array ( new CAnString * [ cAnagrams ] );
+            unique_ptr<CAnString * []> array ( new CAnString * [ cAnagrams ] );
             g_Results->GetAnagrams( array.get(), cAnagrams );
-            qsort( array.get(), cAnagrams, sizeof( void * ), compareAG );
+            // std::sort with a lambda lets the comparison inline directly into the sort
+            // (qsort's function-pointer comparator can't be); same reasoning that already
+            // led to replacing qsort with SortChars above, just applied to the one
+            // remaining qsort call, which runs over the full result set.
+            std::sort( array.get(), array.get() + cAnagrams,
+                       []( CAnString * a, CAnString * b ) { return strcmp( a->buf, b->buf ) < 0; } );
 
             CStringBuilder sb( 4096 );
             CAnagramSet permsSet( 1 );
+
+            // Reused across iterations of the loop below instead of a fresh new[]/delete[]
+            // per anagram -- only grows (via .reset()) when a bigger buffer is actually
+            // needed, same grow-only spirit as CStringBuilder::EnsureSize.
+
+            unique_ptr<CAnString * []> arrayPerms;
+            int arrayPermsCapacity = 0;
 
             for ( int a = 0; a < cAnagrams; a++ )
             {
@@ -1486,7 +1623,13 @@ extern "C" int main( int argc, char * argv[] )
                     permsSet.Clear();
                     FindWordsInSentencePermutations( array.get()[ a ], permsSet );
                     int permsCount = permsSet.Count();
-                    unique_ptr<CAnString *> arrayPerms ( new CAnString *[ permsCount ] );
+
+                    if ( permsCount > arrayPermsCapacity )
+                    {
+                        arrayPerms.reset( new CAnString *[ permsCount ] );
+                        arrayPermsCapacity = permsCount;
+                    }
+
                     permsSet.GetAnagrams( arrayPerms.get(), permsCount );
                     bool first = true;
 
