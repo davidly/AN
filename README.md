@@ -26,17 +26,23 @@ Usage: an [-c] [-i] [-o] [-p] [-t] [-w:X] [word1] [word2] [...]
                an -w:3 -p playing  Find one to three word anagrams and show all permutations
                an phoebe bridgers  Find anagrams
                an -i verylongstringwithmanywords -w:9  -- Show incremental progress because it'll take forever.
-    notes:     The combinatorics blow up beyond about 22 characters for 3-word anagrams
-               and even sooner for more-word anagrams. Use -i to see early results.
+    notes:     Combinatorics can still blow up for longer inputs and/or higher -w values
+               used together. Use -i to see early results if a search is taking a while.
                The file words.txt must be in the same directory as this .exe. Feel free to add/delete words.
- 
+
+Word search uses a trie built from words.txt at startup, and the search itself runs in
+parallel across available cores (via PPL on Windows, OpenMP on Linux/Mac) unless -o is given.
+
 The code in an.cxx is covered under GPL v3.
  
-The file words.txt comes originally from WordNet. 
+The file words.txt comes originally from WordNet.
  
     https://wordnet.princeton.edu/license-and-commercial-use
-     
-Words.txt must reside in the same folder as an.exe. Add additional words as you like.
+
+It has since been augmented with common American spelling variants (color, organize,
+center, catalog, and ~1,100 more) for words that were only present in their British
+form (colour, organise, centre, catalogue). Add additional words as you like -- one
+per line, in the same folder as an.exe/an.
  
 D:\>an phoebe bridgers -w:2
 
